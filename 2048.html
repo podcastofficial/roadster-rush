@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Neon 2048</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#040611;color:#fff;font-family:Arial,sans-serif;touch-action:none;user-select:none}
+body{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:max(50px,env(safe-area-inset-top)) 14px 14px}
+.top{width:min(92vw,420px);display:flex;gap:8px}
+.box{flex:1;background:#071426;border:1px solid #20dfff88;border-radius:10px;padding:7px 10px}
+.box small{display:block;font-size:9px;letter-spacing:1.4px;color:#6feaff}
+.box b{font-size:20px}
+#board{position:relative;width:min(92vw,420px);aspect-ratio:1;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px;background:#0a1630;border:1px solid #20dfff88;border-radius:16px}
+.t{border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;background:#101d3a;font-size:clamp(18px,7vw,32px)}
+.t.pop{animation:p .14s}
+@keyframes p{from{transform:scale(.6)}to{transform:scale(1)}}
+button{height:46px;padding:0 22px;border-radius:12px;border:1px solid #31eaff;background:#0a1930;color:#fff;font-size:14px;font-weight:bold;letter-spacing:1px}
+button:active{background:#086a8b}
+#over{position:absolute;inset:0;border-radius:16px;background:#040611dd;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;font-size:22px;font-weight:900;color:#ff70df}
+.hint{font-size:11px;color:#a4bfd5}
+</style>
+</head>
+<body>
+<div class="top">
+ <div class="box"><small>SCORE</small><b id="sc">0</b></div>
+ <div class="box"><small>BEST</small><b id="bs">0</b></div>
+ <button id="nw">NEW</button>
+</div>
+<div id="board"><div id="over"><div>GAME OVER</div><button id="again">TRY AGAIN</button></div></div>
+<div class="hint">Swipe or use arrow keys</div>
+<script>
+const R=Math.random,$=id=>document.getElementById(id),brd=$('board');
+let g,score=0,over=false,best=0;
+try{best=+localStorage.getItem('g2048-best')||0}catch{}
+function color(v){return 'hsl('+((Math.log2(v)*38+180)%360)+' 80% '+(v>4?42:30)+'%)'}
+function add(){const e=[];g.forEach((v,i)=>v||e.push(i));if(e.length){const i=e[R()*e.length|0];g[i]=R()<.9?2:4;return i}return -1}
+function init(){g=Array(16).fill(0);score=0;over=false;add();const n=add();draw(n);$('over').style.display='none'}
+function line(a){
+ const r=a.filter(Boolean);
+ for(let i=0;i<r.length-1;i++)if(r[i]===r[i+1]){r[i]*=2;score+=r[i];r.splice(i+1,1)}
+ while(r.length<4)r.push(0);return r;
+}
+function canMove(){
+ for(let i=0;i<16;i++){
+  if(!g[i])return true;
+  if(i%4<3&&g[i]===g[i+1])return true;
+  if(i<12&&g[i]===g[i+4])return true;
+ }
+ return false;
+}
+function move(d){ // 0 left, 1 right, 2 up, 3 down
+ if(over)return;
+ const old=g.join();
+ for(let k=0;k<4;k++){
+  const idx=[0,1,2,3].map(j=>d<2?k*4+j:j*4+k);
+  let a=idx.map(i=>g[i]);
+  if(d%2)a.reverse();
+  let r=line(a);if(d%2)r.reverse();
+  idx.forEach((i,j)=>g[i]=r[j]);
+ }
+ if(g.join()===old)return;
+ const n=add();draw(n);
+ if(!canMove()){
+  over=true;$('over').style.display='flex';
+  try{parent.postMessage({type:'score',game:'g2048',score},'*')}catch{}
+ }
+}
+function draw(newIdx){
+ [...brd.querySelectorAll('.t')].forEach(t=>t.remove());
+ g.forEach((v,i)=>{
+  const t=document.createElement('div');t.className='t'+(i===newIdx?' pop':'');
+  if(v){t.textContent=v;t.style.background=color(v);t.style.boxShadow='0 0 12px '+color(v)}
+  brd.insertBefore(t,$('over'));
+ });
+ $('sc').textContent=score;
+ if(score>best){best=score;try{localStorage.setItem('g2048-best',best)}catch{}}
+ $('bs').textContent=best;
+}
+let sx=0,sy=0;
+brd.addEventListener('pointerdown',e=>{sx=e.clientX;sy=e.clientY});
+brd.addEventListener('pointerup',e=>{
+ const dx=e.clientX-sx,dy=e.clientY-sy;
+ if(Math.max(Math.abs(dx),Math.abs(dy))<24)return;
+ move(Math.abs(dx)>Math.abs(dy)?(dx>0?1:0):(dy>0?3:2));
+});
+addEventListener('keydown',e=>{
+ const m={ArrowLeft:0,ArrowRight:1,ArrowUp:2,ArrowDown:3}[e.key];
+ if(m!==undefined){e.preventDefault();move(m)}
+});
+$('nw').onclick=init;$('again').onclick=init;
+init();
+</script>
+</body>
+</html>
