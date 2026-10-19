@@ -49,7 +49,8 @@ const GAMES=[
  {id:'paddle',name:'Paddle Duel',desc:'Beat the AI',icon:'🏓',src:'games/paddle.html'},
  {id:'blocks',name:'Block Drop',desc:'Falling-block puzzle',icon:'🧩',src:'games/blocks.html'},
  {id:'maze',name:'Glow Maze',desc:'Eat dots, dodge drones',icon:'🟡',src:'games/maze.html'},
- {id:'bombs',name:'Bomb Blast',desc:'Crates, bombs, robots',icon:'💣',src:'games/bombs.html'}
+ {id:'bombs',name:'Bomb Blast',desc:'Crates, bombs, robots',icon:'💣',src:'games/bombs.html'},
+ {id:'hero',name:'Neon Hero',desc:'Platformer, endless levels',icon:'🦸',src:'games/hero.html'}
 ];
 const SOON=[['Endless Runner 3D','🏃'],['Stack Tower','🧱'],['Neon Snake','🐍'],['Memory Match','🃏']];
 let scores={};
@@ -121,6 +122,14 @@ $('back').onclick=close;
 addEventListener('message',e=>{
  if(e.source!==$('frame').contentWindow||!cur)return;
  const d=e.data;
+ if(d&&d.type==='haptic'){
+  const k=['light','medium','heavy','success','warning','error'].includes(d.kind)?d.kind:'light';
+  try{
+   if(tg&&tg.HapticFeedback){['success','warning','error'].includes(k)?tg.HapticFeedback.notificationOccurred(k):tg.HapticFeedback.impactOccurred(k)}
+   else if(navigator.vibrate)navigator.vibrate(k==='heavy'||k==='error'?90:30);
+  }catch{}
+  return;
+ }
  if(!d||d.type!=='score'||d.game!==cur.id)return;
  const s=Math.floor(Number(d.score));
  if(!Number.isFinite(s)||s<0||s>1e9)return;
