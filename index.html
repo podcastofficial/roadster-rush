@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>ROADSTER RUSH | Cyberpunk Racing</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#050713;color:white;font-family:Arial,sans-serif;overflow:hidden;touch-action:none}
+#game{display:block;width:100vw;height:100dvh}
+#hud{position:absolute;top:14px;left:14px;right:14px;display:flex;justify-content:space-between;gap:8px;pointer-events:none}
+.panel{background:#091324dc;border:1px solid #00eaff66;border-radius:12px;padding:10px 13px;box-shadow:0 0 15px #00eaff18}
+.label{font-size:10px;color:#65dff4;letter-spacing:2px}
+.value{font-size:20px;font-weight:bold;margin-top:4px}
+#brand{position:absolute;top:105px;left:0;right:0;text-align:center;pointer-events:none}
+#brand h1{font-size:clamp(23px,5vw,36px);margin:0;color:#eafcff;letter-spacing:4px;text-shadow:0 0 18px #00d9ff}
+#brand p{font-size:10px;color:#ff4fcb;letter-spacing:4px;margin:7px}
+#controls{position:absolute;bottom:20px;left:0;right:0;display:flex;justify-content:space-between;align-items:end;padding:0 20px}
+.group{display:flex;gap:12px;align-items:center}
+button{color:white;background:#101c30dd;border:1px solid #00dfff;border-radius:15px;min-width:65px;height:62px;font-size:24px;font-weight:bold;touch-action:none;box-shadow:0 0 16px #00cfff22}
+button:active{background:#087e9d;transform:scale(.96)}
+#nitro{width:92px;height:58px;font-size:13px;color:#ff70dc;border-color:#ff55d9}
+#startScreen{position:absolute;inset:0;background:linear-gradient(#030714a8,#030714e8);display:flex;align-items:center;justify-content:center;padding:22px}
+.dialog{text-align:center;max-width:350px;width:100%;padding:26px 20px;background:#0a1225ed;border:1px solid #00dfff88;border-radius:22px;box-shadow:0 0 35px #00bfff22}
+.dialog h2{font-size:27px;letter-spacing:3px;margin:0 0 10px}
+.dialog p{color:#a9bfd4;line-height:1.6;font-size:14px}
+#start{width:100%;height:55px;background:linear-gradient(90deg,#087eaf,#6926a9);font-size:15px;letter-spacing:2px;margin-top:12px}
+#message{position:absolute;top:46%;width:100%;text-align:center;font-size:25px;font-weight:bold;color:#ff6be0;text-shadow:0 0 20px #ff32c8;pointer-events:none}
+#message:empty{display:none}
+#help{position:absolute;bottom:98px;width:100%;text-align:center;font-size:10px;color:#8aa5bb;pointer-events:none}
+@media(min-width:700px){#controls{padding:0 8%}.panel{padding:12px 20px}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div class="panel"><div class="label">SCORE</div><div class="value" id="score">0</div></div>
+  <div class="panel"><div class="label">SPEED</div><div class="value"><span id="speed">0</span> <small>KM/H</small></div></div>
+  <div class="panel"><div class="label">DISTANCE</div><div class="value"><span id="distance">0</span> m</div></div>
+</div>
+
+<div id="brand"><h1>ROADSTER RUSH</h1><p>CYBERPUNK RACING</p></div>
+
+<div id="message"></div>
+<div id="help">DODGE TRAFFIC • ACTIVATE NITRO • BEAT YOUR RECORD</div>
+
+<div id="controls">
+  <div class="group">
+    <button id="left" aria-label="Steer left">◀</button>
+    <button id="right" aria-label="Steer right">▶</button>
+  </div>
+  <button id="nitro">⚡ NITRO</button>
+</div>
+
+<div id="startScreen">
+  <div class="dialog">
+    <h2>READY TO RACE?</h2>
+    <p>Enter the neon highway. Dodge traffic, use nitro and beat your highest score!</p>
+    <p>Use the left and right buttons to steer.</p>
+    <button id="start">▶ START RACING</button>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
+
+const canvas=document.getElementById('game');
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x050713);
+scene.fog=new THREE.Fog(0x050713,35,145);
+
+const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,250);
+camera.position.set(0,5,10);
+
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+renderer.setSize(innerWidth,innerHeight);
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.2;
+
+scene.add(new THREE.HemisphereLight(0x91baff,0x171025,2));
+const light=new THREE.DirectionalLight(0xffffff,2.5);
+light.position.set(-4,10,6);scene.add(light);
+
+function mat(color,emissive=0x000000,intensity=0){
+ return new THREE.MeshStandardMaterial({color,emissive,emissiveIntensity:intensity,roughness:.35,metalness:.55});
+}
+const roadMat=mat(0x151a2b);
+const cyan=mat(0x00dfff,0x00bfff,2);
+const pink=mat(0xff25bb,0xff0099,2);
+const white=mat(0xd9efff,0x8bcaff,.5);
+
+const road=new THREE.Mesh(new THREE.PlaneGeometry(12,220),roadMat);
+road.rotation.x=-Math.PI/2;road.position.set(0,-.05,-70);scene.add(road);
+
+const grid=new THREE.GridHelper(220,80,0x153b70,0x10213d);
+grid.position.set(0,0,-70);scene.add(grid);
+
+for(const x of [-3.95,3.95]){
+ const rail=new THREE.Mesh(new THREE.BoxGeometry(.055,.08,220),x<0?cyan:pink);
+ rail.position.set(x,.06,-70);scene.add(rail);
+}
+const dashes=[];
+for(const x of [-2,2]){
+ for(let i=0;i<22;i++){
+  const dash=new THREE.Mesh(new THREE.BoxGeometry(.07,.025,2.1),white);
+  dash.position.set(x,.01,-i*5);scene.add(dash);dashes.push(dash);
+ }
+}
+
+// Futuristic skyline
+for(let i=0;i<65;i++){
+ const side=i%2===0?-1:1;
+ const z=-Math.random()*155;
+ const h=4+Math.random()*18;
+ const w=2+Math.random()*4;
+ const building=new THREE.Mesh(
+  new THREE.BoxGeometry(w,h,w),
+  mat(i%3===0?0x142344:0x101629)
+ );
+ building.position.set(side*(7+Math.random()*13),h/2-.1,z);
+ scene.add(building);
+
+ for(let j=0;j<3;j++){
+  const strip=new THREE.Mesh(
+   new THREE.BoxGeometry(.035,.05,w+.02),
+   i%2?cyan:pink
+  );
+  strip.position.set(building.position.x,h*(.25+j*.22),z);
+  scene.add(strip);
+ }
+}
+
+// Original electric supercar model
+const car=new THREE.Group();
+const body=new THREE.Mesh(new THREE.BoxGeometry(1.45,.42,2.65),mat(0x16b9df,0x003d66,.7));
+body.position.y=.55;car.add(body);
+
+const cabin=new THREE.Mesh(new THREE.BoxGeometry(1.05,.42,1.25),mat(0x172943,0x06304e,.4));
+cabin.position.set(0,.91,-.12);car.add(cabin);
+
+const hood=new THREE.Mesh(new THREE.BoxGeometry(1.2,.10,.72),mat(0x37eaff,0x0088aa,.8));
+hood.position.set(0,.78,-.83);car.add(hood);
+
+for(const x of [-.53,.53]){
+ const head=new THREE.Mesh(new THREE.BoxGeometry(.3,.07,.06),white);
+ head.position.set(x,.59,-1.34);car.add(head);
+ const tail=new THREE.Mesh(new THREE.BoxGeometry(.36,.07,.06),pink);
+ tail.position.set(x,.59,1.34);car.add(tail);
+}
+const wheels=[];
+for(const x of [-.76,.76]){
+ for(const z of [-.85,.88]){
+  const wheel=new THREE.Mesh(
+   new THREE.CylinderGeometry(.25,.25,.17,12),
+   mat(0x101116)
+  );
+  wheel.rotation.z=Math.PI/2;
+  wheel.position.set(x,.29,z);car.add(wheel);wheels.push(wheel);
+ }
+}
+const glow=new THREE.PointLight(0x00dfff,5,5);
+glow.position.set(0,.4,1.3);car.add(glow);
+car.position.set(0,0,3);
+scene.add(car);
+
+// Traffic cars
+const traffic=[];
+function spawnTraffic(z=-100){
+ const g=new THREE.Group();
+ const color=[0xff235a,0x9d54ff,0xffae32,0x28e6b2][Math.floor(Math.random()*4)];
+ const m=mat(color,color,.35);
+ const b=new THREE.Mesh(new THREE.BoxGeometry(1.35,.65,2.2),m);
+ b.position.y=.45;g.add(b);
+ const top=new THREE.Mesh(new THREE.BoxGeometry(.95,.35,1),mat(0x152239));
+ top.position.set(0,.91,-.05);g.add(top);
+ const lane=[-2.7,0,2.7][Math.floor(Math.random()*3)];
+ g.position.set(lane,0,z);
+ scene.add(g);
+ traffic.push({g,lane});
+}
+let running=false,gameOver=false,nitro=false;
+let score=0,distance=0,speed=0;
+let x=0,steer=0,nitroFuel=100,last=0,spawnTimer=0;
+let best=0;
+try{best=Number(localStorage.getItem('rr-best')||0)}catch{}
+const $=id=>document.getElementById(id);
+
+function updateHud(){
+ $('score').textContent=Math.floor(score);
+ $('speed').textContent=Math.floor(speed);
+ $('distance').textContent=Math.floor(distance);
+}
+function endGame(){
+ running=false;gameOver=true;
+ best=Math.max(best,Math.floor(score));
+ try{localStorage.setItem('rr-best',best)}catch{}
+ $('message').textContent='CRASH! SCORE: '+Math.floor(score);
+ $('startScreen').style.display='flex';
+ $('start').textContent='↻ RACE AGAIN';
+ $('start').focus({preventScroll:true});
+}
+function startGame(){
+ for(const t of traffic)scene.remove(t.g);
+ traffic.length=0;
+ score=0;distance=0;speed=0;x=0;steer=0;nitroFuel=100;
+ gameOver=false;running=true;nitro=false;spawnTimer=0;
+ car.position.x=0;
+ $('message').textContent='';
+ $('startScreen').style.display='none';
+ updateHud();
+}
+
+$('start').addEventListener('click',startGame);
+function hold(id,down,up){
+ const b=$(id);
+ b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);down()});
+ for(const ev of ['pointerup','pointercancel','lostpointercapture'])
+  b.addEventListener(ev,up);
+}
+hold('left',()=>steer=-1,()=>{if(steer===-1)steer=0});
+hold('right',()=>steer=1,()=>{if(steer===1)steer=0});
+hold('nitro',()=>nitro=true,()=>nitro=false);
+
+addEventListener('keydown',e=>{
+ if(e.key==='ArrowLeft'||e.key==='a')steer=-1;
+ if(e.key==='ArrowRight'||e.key==='d')steer=1;
+ if(e.code==='Space')nitro=true;
+});
+addEventListener('keyup',e=>{
+ if(['ArrowLeft','a','ArrowRight','d'].includes(e.key))steer=0;
+ if(e.code==='Space')nitro=false;
+});
+
+let touchX=null;
+canvas.addEventListener('pointerdown',e=>{touchX=e.clientX});
+canvas.addEventListener('pointermove',e=>{
+ if(touchX!==null&&e.pointerType==='touch'){
+  const dx=e.clientX-touchX;
+  if(Math.abs(dx)>12){steer=dx>0?1:-1;touchX=e.clientX}
+ }
+});
+canvas.addEventListener('pointerup',()=>{touchX=null;steer=0});
+
+function animate(time){
+ requestAnimationFrame(animate);
+ const dt=Math.min((time-last)/1000||0,.04);last=time;
+
+ if(running){
+  const boost=nitro&&nitroFuel>0;
+  speed=boost?245:150;
+  if(boost)nitroFuel=Math.max(0,nitroFuel-34*dt);
+  else nitroFuel=Math.min(100,nitroFuel+10*dt);
+
+  x+=steer*5.2*dt;
+  x=THREE.MathUtils.clamp(x,-3.1,3.1);
+  car.position.x=THREE.MathUtils.lerp(car.position.x,x,.18);
+  car.rotation.z=THREE.MathUtils.lerp(car.rotation.z,-steer*.10,.12);
+
+  const movement=(boost?42:27)*dt;
+  distance+=movement;
+  score+=movement*(boost?2:1);
+  spawnTimer+=dt;
+
+  for(const d of dashes){d.position.z+=movement;if(d.position.z>8)d.position.z-=110}
+  grid.position.z+=movement;
+  if(grid.position.z>0)grid.position.z=-110;
+
+  for(const t of traffic){
+   t.g.position.z+=movement*(.8+Math.random()*.03);
+   if(Math.abs(t.g.position.z-car.position.z)<1.8&&Math.abs(t.g.position.x-car.position.x)<1.15){
+    endGame();break;
+   }
+   if(t.g.position.z>10){scene.remove(t.g);traffic.splice(traffic.indexOf(t),1);score+=10}
+  }
+  if(spawnTimer>(boost?.85:1.2)){
+   spawnTraffic(-110);spawnTimer=0;
+  }
+  for(const w of wheels)w.rotation.x+=movement*.8;
+  $('nitro').style.opacity=nitroFuel>0?'1':'.45';
+  $('nitro').textContent=boost?'⚡ BOOST':'⚡ NITRO';
+  updateHud();
+ }
+
+ camera.position.x=THREE.MathUtils.lerp(camera.position.x,car.position.x*.35,.06);
+ camera.position.y=4.5;
+ camera.position.z=9;
+ camera.lookAt(car.position.x*.55,.55,-5);
+ renderer.render(scene,camera);
+}
+requestAnimationFrame(animate);
+
+addEventListener('resize',()=>{
+ camera.aspect=innerWidth/innerHeight;
+ camera.updateProjectionMatrix();
+ renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+ renderer.setSize(innerWidth,innerHeight);
+});
+</script>
+</body>
+                                                                        </html>
