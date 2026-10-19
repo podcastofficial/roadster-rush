@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Glow Maze</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#040611;color:#fff;font-family:Arial,sans-serif;touch-action:none;user-select:none}
+body{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:max(48px,env(safe-area-inset-top)) 8px 12px}
+#info{display:flex;gap:18px;font-weight:900;font-size:14px;text-shadow:0 0 8px #00dfff}
+canvas{border:1px solid #20dfff88;border-radius:8px;background:#050818;touch-action:none}
+.hint{font-size:11px;color:#a4bfd5}
+#menu{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#030612dd;text-align:center}
+#menu h2{margin:0;font-size:26px;letter-spacing:3px;color:#ff70df}
+button{height:48px;padding:0 28px;border-radius:14px;border:1px solid #31eaff;background:linear-gradient(100deg,#007eae,#5624ad);color:#fff;font-weight:bold;letter-spacing:2px}
+</style>
+</head>
+<body>
+<div id="info"><span id="sc">SCORE 0</span><span id="lv">LVL 1</span><span id="li">♥♥♥</span></div>
+<canvas id="c"></canvas>
+<div class="hint">Swipe to turn. Eat all dots. Big dots make drones weak.</div>
+<div id="menu"><h2 id="t">GAME OVER</h2><p id="s"></p><button id="go">PLAY AGAIN</button></div>
+<script>
+const $=id=>document.getElementById(id),c=$('c'),x=c.getContext('2d'),R=Math.random;
+const M=["###############","#......#......#","#.##.#####.##.#","#o...........o#","#.##.#.#.#.##.#","#....#...#....#","####.#.#.#.####","#.............#","####.#.#.#.####","#....#...#....#","#.##.#.#.#.##.#","#o...........o#","#.##.#####.##.#","#......#......#","###############"];
+const N=15,DIRS=[[1,0],[0,1],[-1,0],[0,-1]],GC=['#ff2458','#ff9a3c','#35e88a'];
+let cs;function size(){cs=Math.floor(Math.min((innerWidth-16)/N,(innerHeight-170)/N));c.width=c.height=cs*N}
+size();addEventListener('resize',size);
+let g,dots,P,G,score,lives,level,power,want,run,last=0,t0=0;
+const wall=(a,b)=>!g[b]||g[b][a]===undefined||g[b][a]==='#';
+function ent(a,b,sp){return{x:a,y:b,nx:a,ny:b,p:1,d:-1,sp}}
+function loadGrid(){g=M.map(r=>r.split(''));dots=0;g.forEach(r=>r.forEach(v=>{if(v==='.'||v==='o')dots++}))}
+function reset(){
+ P=ent(7,11,4.2);want=-1;
+ G=[0,1,2].map(i=>{const e=ent(6+i,7,3.2+level*.12);e.i=i;e.hold=i*2.2;e.dead=false;return e});power=0;
+}
+function start(){score=0;lives=3;level=1;loadGrid();reset();run=true;$('menu').style.display='none';hud()}
+function hud(){$('sc').textContent='SCORE '+score;$('lv').textContent='LVL '+level;$('li').textContent='♥'.repeat(Math.max(0,lives))}
+function adv(e,dt,pick){
+ e.p+=e.sp*dt;
+ while(e.p>=1){
+  e.x=e.nx;e.y=e.ny;const d=pick(e);
+  if(d<0){e.p=1;e.d=-1;break}
+  e.d=d;e.nx=e.x+DIRS[d][0];e.ny=e.y+DIRS[d][1];e.p-=1;
+ }
+}
+function pickP(e){
+ const v=g[e.y][e.x];
+ if(v==='.'){g[e.y][e.x]=' ';score+=10;dots--;hud()}
+ else if(v==='o'){g[e.y][e.x]=' ';score+=50;dots--;power=6;hud();for(const q of G)if(!q.dead)q.sp=2.4}
+ if(want>=0&&!wall(e.x+DIRS[want][0],e.y+DIRS[want][1]))return want;
+ if(e.d>=0&&!wall(e.x+DIRS[e.d][0],e.y+DIRS[e.d][1]))return e.d;
+ return -1;
+}
+function pickG(e){
+ let o=[0,1,2,3].filter(d=>!wall(e.x+DIRS[d][0],e.y+DIRS[d][1])&&(e.d<0||d!==(e.d+2)%4));
+ if(!o.length)o=[(e.d+2)%4];
+ if(e.dead&&e.x===7&&e.y===7){e.dead=false;e.sp=3.2+level*.12}
+ if(power>0&&!e.dead)return o[R()*o.length|0];
+ let tx=P.x,ty=P.y;
+ if(e.dead){tx=7;ty=7}
+ else if(e.i===1&&P.d>=0){tx+=DIRS[P.d][0]*3;ty+=DIRS[P.d][1]*3}
+ else if(e.i===2&&R()<.35)return o[R()*o.length|0];
+ let best=o[0],bd=1e9;
+ for(const d of o){const a=e.x+DIRS[d][0]-tx,b=e.y+DIRS[d][1]-ty,q=a*a+b*b;if(q<bd){bd=q;best=d}}
+ return best;
+}
+const pos=e=>[e.x+(e.nx-e.x)*e.p,e.y+(e.ny-e.y)*e.p];
+function die(){
+ lives--;hud();
+ try{navigator.vibrate&&navigator.vibrate(70)}catch{}
+ if(lives<=0){
+  run=false;
+  try{parent.postMessage({type:'score',game:'maze',score},'*')}catch{}
+  $('s').textContent='Score '+score+' • Level '+level;$('menu').style.display='flex';
+ }else reset();
+}
+function setDir(d){
+ want=d;
+ if(P.d>=0&&d===(P.d+2)%4&&P.p<1){
+  [P.x,P.nx]=[P.nx,P.x];[P.y,P.ny]=[P.ny,P.y];P.p=1-P.p;P.d=d;
+ }
+}
+let sx=0,sy=0;
+c.addEventListener('pointerdown',e=>{sx=e.clientX;sy=e.clientY});
+c.addEventListener('pointermove',e=>{
+ if(!e.buttons&&e.pointerType==='mouse')return;
+ const dx=e.clientX-sx,dy=e.clientY-sy;
+ if(Math.max(Math.abs(dx),Math.abs(dy))<18)return;
+ setDir(Math.abs(dx)>Math.abs(dy)?(dx>0?0:2):(dy>0?1:3));sx=e.clientX;sy=e.clientY;
+});
+addEventListener('keydown',e=>{const m={ArrowRight:0,ArrowDown:1,ArrowLeft:2,ArrowUp:3}[e.key];if(m!==undefined){e.preventDefault();setDir(m)}});
+$('go').onclick=start;
+function draw(t){
+ x.fillStyle='#050818';x.fillRect(0,0,c.width,c.height);
+ x.shadowBlur=8;
+ for(let b=0;b<N;b++)for(let a=0;a<N;a++){
+  const v=g[b][a];
+  if(v==='#'){x.shadowColor='#2f6bff';x.strokeStyle='#2f6bff';x.strokeRect(a*cs+3,b*cs+3,cs-6,cs-6)}
+  else if(v==='.'){x.shadowBlur=0;x.fillStyle='#ffd9a8';x.fillRect(a*cs+cs/2-2,b*cs+cs/2-2,4,4);x.shadowBlur=8}
+  else if(v==='o'){x.shadowColor='#fff';x.fillStyle='#fff';x.beginPath();x.arc(a*cs+cs/2,b*cs+cs/2,cs*.22+Math.sin(t/150)*1.5,0,7);x.fill()}
+ }
+ let [px,py]=pos(P);px=(px+.5)*cs;py=(py+.5)*cs;
+ const ang=(P.d<0?0:P.d)*Math.PI/2,m=.15+.2*Math.abs(Math.sin(t/90));
+ x.fillStyle='#ffd23c';x.shadowColor='#ffd23c';x.beginPath();x.moveTo(px,py);x.arc(px,py,cs*.4,ang+m*Math.PI,ang+(2-m)*Math.PI);x.fill();
+ for(const e of G){
+  let [gx,gy]=pos(e);gx=(gx+.5)*cs;gy=(gy+.5)*cs;const r=cs*.4;
+  const col=e.dead?null:(power>0?(power<2&&Math.floor(t/150)%2?'#fff':'#3b5bff'):GC[e.i]);
+  if(col){x.fillStyle=col;x.shadowColor=col;x.beginPath();x.arc(gx,gy-r*.1,r,Math.PI,0);x.lineTo(gx+r,gy+r*.8);x.lineTo(gx,gy+r*.5);x.lineTo(gx-r,gy+r*.8);x.closePath();x.fill()}
+  x.fillStyle='#fff';x.shadowBlur=0;x.fillRect(gx-r*.55,gy-r*.4,r*.4,r*.45);x.fillRect(gx+r*.15,gy-r*.4,r*.4,r*.45);x.shadowBlur=8;
+ }
+ x.shadowBlur=0;
+}
+function loop(t){
+ requestAnimationFrame(loop);
+ const dt=Math.min((t-last)/1000||0,.04);last=t;
+ if(run){
+  adv(P,dt,pickP);
+  if(power>0){power-=dt;if(power<=0)for(const e of G)if(!e.dead)e.sp=3.2+level*.12}
+  const [px,py]=pos(P);
+  for(const e of G){
+   if(e.hold>0){e.hold-=dt;continue}
+   adv(e,dt,pickG);
+   const [gx,gy]=pos(e);
+   if(!e.dead&&Math.hypot(gx-px,gy-py)<.6){
+    if(power>0){e.dead=true;e.sp=7;score+=200;hud()}else{die();break}
+   }
+  }
+  if(run&&dots<=0){level++;loadGrid();reset();hud()}
+ }
+ if(g)draw(t);
+}
+loadGrid();reset();run=false;
+$('t').textContent='GLOW MAZE';$('s').textContent='Swipe to turn.';$('go').textContent='START';$('menu').style.display='flex';
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
