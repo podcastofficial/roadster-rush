@@ -43,16 +43,9 @@ h2{font-size:12px;letter-spacing:2px;color:#6feaff;margin:22px 0 10px;font-weigh
 const tg=window.Telegram&&window.Telegram.WebApp;
 const $=id=>document.getElementById(id);
 const GAMES=[
- {id:'racing',name:'Roadster Rush 2',desc:'3D neon racer',icon:'🏎️',src:'games/racing.html'},
- {id:'g2048',name:'Neon 2048',desc:'Slide and merge tiles',icon:'🔢',src:'games/2048.html'},
- {id:'shooter',name:'Star Raid',desc:'Space shooter',icon:'🚀',src:'games/shooter.html'},
- {id:'paddle',name:'Paddle Duel',desc:'Beat the AI',icon:'🏓',src:'games/paddle.html'},
- {id:'blocks',name:'Block Drop',desc:'Falling-block puzzle',icon:'🧩',src:'games/blocks.html'},
- {id:'maze',name:'Glow Maze',desc:'Eat dots, dodge drones',icon:'🟡',src:'games/maze.html'},
- {id:'bombs',name:'Bomb Blast',desc:'Crates, bombs, robots',icon:'💣',src:'games/bombs.html'},
- {id:'hero',name:'Neon Hero',desc:'Platformer, endless levels',icon:'🦸',src:'games/hero.html'}
-];
-const SOON=[['Endless Runner 3D','🏃'],['Stack Tower','🧱'],['Neon Snake','🐍'],['Memory Match','🃏']];
+ ['runner','Neon Runner','Dodge the city barriers','🏃'],['shooter','Star Raid','Blast incoming drones','🚀'],['puzzle','Color Shift','Match falling gems','◈'],['maze','Glow Maze','Collect orbs and escape','◉'],['stack','Tower Stack','Build the tallest tower','▥'],['memory','Memory Flip','Find matching pairs','▣'],['snake','Neon Snake','Grow without crashing','⌁'],['breaker','Brick Breaker','Clear neon blocks','▱'],['target','Target Hunt','Hit targets on time','◎'],['drift','Drift Circuit','Survive sharp turns','◇'],['orbit','Orbit Defender','Protect the core','◌'],['jump','Sky Jumper','Jump between platforms','↑'],['word','Word Rush','Solve the neon word','A'],['match','Gem Match','Connect glowing gems','◆'],['asteroid','Asteroid Belt','Avoid space rocks','✦'],['fishing','Pixel Fishing','Catch rare fish','⌁'],['soccer','Neon Goal','Score against the keeper','○'],['rocket','Rocket Fuel','Collect fuel in flight','△'],['traffic','Traffic Jam','Find the safe lane','▤'],['cards','Cyber Cards','Beat the dealer','▰'],['dungeon','Dungeon Dash','Find the exit key','✧'],['pinball','Neon Pinball','Keep the ball alive','●']
+].map(([id,name,desc,icon])=>({id,name,desc,icon,src:'games/arcade.html?game='+id}));
+const SOON=[];
 let scores={};
 
 /* ---- Telegram setup (safe outside Telegram too) ---- */
