@@ -75,7 +75,11 @@ scene.background=new THREE.Color(0x070618);
 scene.fog=new THREE.Fog(0x140a2e,35,125);
 const cam=new THREE.PerspectiveCamera(63,innerWidth/innerHeight,.1,260);
 const rend=new THREE.WebGLRenderer({canvas:$('game'),antialias:false,powerPreference:'high-performance'});
-rend.setPixelRatio(Math.min(devicePixelRatio||1,1.25));
+const deviceMemory=navigator.deviceMemory||4;
+const cores=navigator.hardwareConcurrency||4;
+const maxPixelRatio=deviceMemory<=2||cores<=2?1:1.25;
+let pixelRatio=Math.min(devicePixelRatio||1,maxPixelRatio);
+rend.setPixelRatio(pixelRatio);
 rend.setSize(innerWidth,innerHeight);
 rend.outputColorSpace=THREE.SRGBColorSpace;
 rend.toneMapping=THREE.ACESFilmicToneMapping;
@@ -253,7 +257,7 @@ function crash(){
 }
 function endGame(){
  running=false;dying=false;ts=1;
- const s=Math.floor(score);try{parent.postMessage({type:"score",game:"racing",score:s},"*")}catch{}
+ const s=Math.floor(score);try{parent.postMessage({type:"score",game:"racing",score:s},location.origin)}catch{}
  if(s>best){best=s;try{localStorage.setItem('rr2-best',String(best))}catch{}}
  $('best').textContent='BEST SCORE: '+best;
  $('last').textContent='SCORE '+s+' • COINS '+coins+' • '+Math.floor(distance)+' M';
@@ -375,7 +379,7 @@ requestAnimationFrame(animate);
 
 addEventListener('resize',()=>{
  cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();
- rend.setPixelRatio(Math.min(devicePixelRatio||1,1.25));rend.setSize(innerWidth,innerHeight);
+ rend.setPixelRatio(pixelRatio);rend.setSize(innerWidth,innerHeight);
 });
 </script>
 </body>

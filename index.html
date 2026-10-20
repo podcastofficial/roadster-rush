@@ -120,7 +120,7 @@ $('back').onclick=close;
 
 /* ---- Score messages from the game iframe ---- */
 addEventListener('message',e=>{
- if(e.source!==$('frame').contentWindow||!cur)return;
+ if(e.origin!==location.origin||e.source!==$('frame').contentWindow||!cur)return;
  const d=e.data;
  if(d&&d.type==='haptic'){
   const k=['light','medium','heavy','success','warning','error'].includes(d.kind)?d.kind:'light';
